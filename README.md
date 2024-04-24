@@ -1174,3 +1174,61 @@ end
 endfunction
 
 endmodule
+
+//TOP LEVEL
+
+‘timescale 1ns / 1ps
+module router_top(input logic clk, resetn, packet_valid, readenb0,
+readenb1, readenb2,
+input logic [7:0] datain,
+output logic vldout0, vldout1, vldout2, err, busy,
+output logic [7:0] dataout0, dataout1, dataout2);
+
+logic [2:0] wenb;
+logic [2:0] softreset;
+logic [2:0] readenb;
+logic [2:0] empty;
+logic [2:0] full;
+logic lfdsstatew;
+logic [7:0] dataouttemp[2:0];
+logic [7:0] dout;
+
+genvar a;
+generate
+for (a = 0; a < 3; a = a + 1)
+begin : fifo
+router_fifo f(.clk(clk), .resetn(resetn), .softreset(softreset[a]),
+.lfdstate(lfdsstatew), .writeenb(wenb[a]), .datain(dout), 
+.readenb(readenb[a]), .full(full[a]), .empty(empty[a]), .dataout(dataouttemp[a]));
+end
+endgenerate
+
+router_reg r1(.clk(clk), .resetn(resetn), .packet_valid(packet_valid),
+.datain(datain), .dout(dout), .fifofull(fifofull), .detectadd(detectadd),
+.ldstate(ldstate), .lafstate(lafstate), .fullstate(fullstate),
+.lfdstate(lfdstatew), .rstintreg(rstintreg), .err(err), .paritydone(paritydone),
+.lowpacketvalid(lowpacketvalid));
+
+router_fsm fsm(.clk(clk), .resetn(resetn), .packet_valid(packet_valid),
+.datain(datain[1:0]), .softreset0(softreset[0]), .softreset1(softreset[1]), 
+.softreset2(softreset[2]), .fifofull(fifofull), .fifoempty0(empty[0]), 
+.fifoempty1(empty[1]), .fifoempty2(empty[2]), .paritydone(paritydone), 
+.lowpacketvalid(lowpacketvalid), .busy(busy), .rstintreg(rstintreg), 
+.fullstate(fullstate), .lfdstate(lfdstatew), .lafstate(lafstate), .ldstate(ldstate),
+.detectadd(detectadd), .writeenbreg(writeenbreg));
+
+router_syncs(.clk(clk), .resetn(resetn), .datain(datain[1:0]), 
+.full0(full[0]), .full1(full[1]), .full2(full[2]), .readenb0(readenb[0]), 
+.readenb1(readenb[1]), .readenb2(readenb[2]), .writeenbreg(writeenbreg), 
+.empty0(empty[0]), .empty1(empty[1]), .empty2(empty[2]), 
+.vldout0(vldout0), .vldout1(vldout1), .vldout2(vldout2), 
+.softreset0(softreset[0]), .softreset1(softreset[1]), .softreset2(softreset[2]), 
+.writeenb(wenb), .fifofull(fifofull));
+
+assign readenb[0] = readenb0;
+assign readenb[1] = readenb1;
+assign readenb[2] = readenb2;
+assign dataout0 = dataouttemp[0];
+assign dataout1 = dataouttemp[1];
+assign dataout2 = dataouttemp[2];
+endmodule
